@@ -1,26 +1,52 @@
 from flask import Flask, request, jsonify
 import pickle
+import numpy as np
 import pandas as pd
 
+# initialize app
 app = Flask(__name__)
 
 # load model
-with open("model.pkl", "rb") as f:
+with open("rf_iris_model.pkl", "rb") as f:
     model = pickle.load(f)
 
-@app.route("/X_test.csv", methods=["POST"])
+# home route (to avoid 404)
+@app.route("/")
+def home():
+    return "Flask API is running successfully!"
+
+# JSON prediction route
+@app.route("/predict", methods=["POST"])
+def predict():
+    try:
+        data = request.get_json()
+        features = np.array(data["features"]).reshape(1, -1)
+
+        prediction = model.predict(features)
+
+        return jsonify({
+            "prediction": prediction.tolist()
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)})
+
+# CSV file upload prediction
+@app.route("/predict_csv", methods=["POST"])
 def predict_csv():
-    file = request.files["file"]
-    
-    # read CSV
-    data = pd.read_csv(file)
-    
-    # prediction
-    predictions = model.predict(data)
+    try:
+        file = request.files["file"]
 
-    return jsonify({
-        "predictions": predictions.tolist()
-    })
+        data = pd.read_csv(file)
+        predictions = model.predict(data)
 
+        return jsonify({
+            "predictions": predictions.tolist()
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)})
+
+# run app
 if __name__ == "__main__":
-    app.run(host = "0.0.0.0", port = 5000, debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True)
